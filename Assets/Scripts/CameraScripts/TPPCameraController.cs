@@ -65,9 +65,7 @@ public class TPPCameraController : MonoBehaviour
         transform.position = position;
     }
 
-    /// <summary>
-    /// Ustawia rotację kamery tak, by patrzyła w zadany punkt (world space)
-    /// </summary>
+    
     public void LookAtPoint(Vector3 worldPoint)
     {
         if (target == null) return;
@@ -89,9 +87,7 @@ public class TPPCameraController : MonoBehaviour
         y = Mathf.Clamp(y, yMinLimit, yMaxLimit);
     }
 
-    /// <summary>
-    /// Zwraca punkt, w który patrzy kamera (punkt na ray z kamery)
-    /// </summary>
+    
     public Vector3 GetLookPoint(float distance = 1000f)
     {
         return transform.position + transform.forward * distance;

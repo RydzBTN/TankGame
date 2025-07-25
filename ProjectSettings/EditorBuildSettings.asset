@@ -6,11 +6,14 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/Movement test/MovementTest.unity
-    guid: 8124e5870f4fd4c779e7a5f994e84ad1
-  - enabled: 1
     path: Assets/Scenes/MainMenu/MainMenu.unity
     guid: e0bd41ddf35eb3c498f6327c7a42041f
+  - enabled: 1
+    path: Assets/Scenes/Polish Plains/Polish Plains.unity
+    guid: c09aac4cb35bf1240a45e30893ff4679
+  - enabled: 0
+    path: Assets/Scenes/Movement test/Testing Site.unity
+    guid: 8124e5870f4fd4c779e7a5f994e84ad1
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 35845fe01580c41289b024647b1d1c53, type: 3}
   m_UseUCBPForAssetBundles: 0

@@ -15,11 +15,7 @@ public class RoomListItem : MonoBehaviour
     {
         // Add listener to the join button
         joinButton.onClick.AddListener(() => {
-            NetworkManager networkManager = FindAnyObjectByType<NetworkManager>();
-            if (networkManager != null)
-            {
-                networkManager.JoinRoom(roomName);
-            }
+            NetworkManager.Instance.JoinRoom(roomName);
         });
     }
 

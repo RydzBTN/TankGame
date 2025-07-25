@@ -4,10 +4,10 @@ using UnityEngine.VFX;
 public class Bullet : MonoBehaviour
 {
     [Header("Statystyki pocisku")]
-    public float startVelocity = 1700f;       // Prędkość początkowa w m/s (typowo 1600-1800 m/s)
+    public float startVelocity = 1700f;       // Prędkość początkowa w m/s
     public float penetratorMass = 5f;         // Masa penetratora w kg
     public float penetratorDiameter = 0.03f;  // Średnica penetratora w metrach
-    public float dragCoefficient = 0.05f;     // Współczynnik oporu powietrza (niski dla aerodynamicznego APFSDS)
+    public float dragCoefficient = 0.05f;     // Współczynnik oporu powietrza
 
     [Header("Zdolność penetracyjna")]
     public float basePenetrationPower = 600f; // Bazowa penetracja w mm RHA
@@ -43,7 +43,7 @@ public class Bullet : MonoBehaviour
     public bool useRealisticDropoff = true;   // Użyj realistycznego spadku prędkości
     public bool logTrajectoryData = false;    // Zapisywanie danych o trajektorii
 
-    private Rigidbody rb;
+    private Rigidbody rigidBody;
     private Vector3 lastPosition;
     private float crossSectionalArea;
     private GameObject activeTrailEffect;
@@ -65,28 +65,28 @@ public class Bullet : MonoBehaviour
             initialPosition = transform.position;
         }
 
-        rb = GetComponent<Rigidbody>();
-        if (rb == null)
+        rigidBody = GetComponent<Rigidbody>();
+        if (rigidBody == null)
         {
-            rb = gameObject.AddComponent<Rigidbody>();
-            rb.useGravity = false;
-            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
+            rigidBody = gameObject.AddComponent<Rigidbody>();
+            rigidBody.useGravity = false;
+            rigidBody.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         }
 
         // Pobierz globalne ustawienia pogodowe
-        airDensity = GameManager.Instance.GetAirDensity(altitude);
-        windDirection = GameManager.Instance.GetWindDirection();
-        windStrength = GameManager.Instance.GetWindStrength();
-        temperature = GameManager.Instance.GetTemperature(altitude);
-        humidity = GameManager.Instance.GetHumidity();
+        airDensity = GetAirDensity(altitude);
+        windDirection = GetWindDirection();
+        windStrength = GetWindStrength();
+        temperature = GetTemperature(altitude);
+        humidity = GetHumidity();
         altitude = transform.position.y; // Ustawienie wysokości pocisku na aktualną pozycję
 
-        rb.mass = penetratorMass;
-        rb.linearDamping = 0; // Wyłączamy domyślny opór, implementujemy własny model
-        rb.angularDamping = 0;
+        rigidBody.mass = penetratorMass;
+        rigidBody.linearDamping = 0; // Wyłączamy domyślny opór, implementujemy własny model
+        rigidBody.angularDamping = 0;
 
         // Ustawienie prędkości początkowej
-        rb.linearVelocity = transform.forward * startVelocity;
+        rigidBody.linearVelocity = transform.forward * startVelocity;
 
         // Obliczenie przekroju poprzecznego
         crossSectionalArea = Mathf.PI * Mathf.Pow(penetratorDiameter / 2, 2);
@@ -106,22 +106,22 @@ public class Bullet : MonoBehaviour
        
     }
 
-    void FixedUpdate()
+    private void FixedUpdate()
     {
-        if (rb == null) return;
+        if (rigidBody == null) return;
 
         // Zliczanie czasu lotu dla efektów zależnych od czasu
         timeInFlight += Time.fixedDeltaTime;
 
         // Pomiar aktualnej prędkości
-        currentSpeed = rb.linearVelocity.magnitude;
-        Vector3 moveDirection = rb.linearVelocity.normalized;
+        currentSpeed = rigidBody.linearVelocity.magnitude;
+        Vector3 moveDirection = rigidBody.linearVelocity.normalized;
 
         // Aktualizacja gęstości powietrza na podstawie wysokości (jeśli się zmienia)
-        if (GameManager.Instance != null && altitude != transform.position.y)
+        if (altitude != transform.position.y)
         {
             altitude = transform.position.y;
-            airDensity = GameManager.Instance.GetAirDensity(altitude);
+            airDensity = GetAirDensity(altitude);
         }
 
         // Opór powietrza - wykorzystujemy współczynnik balistyczny i model G1
@@ -132,8 +132,8 @@ public class Bullet : MonoBehaviour
         else
         {
             // Uproszczony model oporu powietrza
-            float dragForce = 0.5f * dragCoefficient * airDensity * rb.linearVelocity.sqrMagnitude * crossSectionalArea;
-            rb.AddForce(-moveDirection * dragForce);
+            float dragForce = 0.5f * dragCoefficient * airDensity * rigidBody.linearVelocity.sqrMagnitude * crossSectionalArea;
+            rigidBody.AddForce(-moveDirection * dragForce);
         }
 
         // Aktualizacja przebytego dystansu
@@ -148,15 +148,15 @@ public class Bullet : MonoBehaviour
             // Dodatkowy mnożnik zwiększający wpływ wiatru z wysokością
             float altitudeMultiplier = 1.0f + (altitude / 1000f) * 0.1f;
 
-            rb.AddForce(windDirection.normalized * windStrength * windFactor * altitudeMultiplier, ForceMode.Acceleration);
+            rigidBody.AddForce(windDirection.normalized * windStrength * windFactor * altitudeMultiplier, ForceMode.Acceleration);
         }
 
         // Efekt Magnusa (siła działająca prostopadle do kierunku ruchu i osi obrotu)
         if (enableMagnusEffect && spinRate > 0)
         {
-            Vector3 magnusDirection = Vector3.Cross(transform.forward, rb.linearVelocity).normalized;
+            Vector3 magnusDirection = Vector3.Cross(transform.forward, rigidBody.linearVelocity).normalized;
             float magnusFactor = spinRate * 0.0001f * currentSpeed * airDensity;
-            rb.AddForce(magnusDirection * magnusFactor);
+            rigidBody.AddForce(magnusDirection * magnusFactor);
         }
 
         // Precesja żyroskopowa i dryf (subtelne odchylenie od idealnego toru)
@@ -164,29 +164,27 @@ public class Bullet : MonoBehaviour
         {
             float driftMagnitude = 0.01f * Mathf.Sin(timeInFlight * 2f) * (distanceTraveled * 0.001f);
             Vector3 driftDirection = Vector3.Cross(transform.forward, Vector3.up).normalized;
-            rb.AddForce(driftDirection * driftMagnitude);
+            rigidBody.AddForce(driftDirection * driftMagnitude);
         }
 
         // Efekt Coriolisa (wpływ rotacji Ziemi)
         if (enableCoriolisEffect && distanceTraveled > 1000f)
         {
             // Uproszczony model efektu Coriolisa
-            Vector3 coriolisAcceleration = Vector3.Cross(2f * earthRotationAxis * earthRotationSpeed, rb.linearVelocity);
-            rb.AddForce(coriolisAcceleration, ForceMode.Acceleration);
+            Vector3 coriolisAcceleration = Vector3.Cross(2f * earthRotationAxis * earthRotationSpeed, rigidBody.linearVelocity);
+            rigidBody.AddForce(coriolisAcceleration, ForceMode.Acceleration);
         }
 
         // Utrzymanie orientacji pocisku w kierunku ruchu (efekt stabilizacji brzechwowej)
-        if (rb.linearVelocity.sqrMagnitude > 0.1f)
+        if (rigidBody.linearVelocity.sqrMagnitude > 0.1f)
         {
             transform.rotation = Quaternion.Lerp(transform.rotation,
-                                               Quaternion.LookRotation(rb.linearVelocity),
+                                               Quaternion.LookRotation(rigidBody.linearVelocity),
                                                Time.deltaTime * 10f);
         }
 
         // Grawitacja - możemy użyć niestandardowej wartości jeśli BallisticsManager jest dostępny
-        Vector3 gravityForce = GameManager.Instance != null ?
-             GameManager.Instance.GetGravity() : Physics.gravity;
-        rb.AddForce(gravityForce, ForceMode.Acceleration);
+        rigidBody.AddForce(new Vector3(0, -9.82f, 0), ForceMode.Acceleration);
 
         
 
@@ -207,9 +205,11 @@ public class Bullet : MonoBehaviour
                 );
             }
         }
+
+        
     }
 
-    void OnCollisionEnter(Collision collision)
+    private void OnCollisionEnter(Collision collision)
     {
         Destroy(gameObject);
         Debug.Log("Pocisk zderzył się z obiektem: " + collision.gameObject.name);
@@ -228,7 +228,7 @@ public class Bullet : MonoBehaviour
         float dragForce = (cd * airDensity * currentSpeed * currentSpeed * crossSectionalArea) / (2f * ballisticCoefficient);
 
         // Zastosowanie siły oporu w kierunku przeciwnym do ruchu
-        rb.AddForce(-rb.linearVelocity.normalized * dragForce);
+        rigidBody.AddForce(-rigidBody.linearVelocity.normalized * dragForce);
     }
 
     // Obliczenie współczynnika oporu dla modelu G1 (standardowy model balistyczny)
@@ -244,5 +244,33 @@ public class Bullet : MonoBehaviour
         else
             return 0.3f - (mach - 2f) * 0.05f; // Wysoka prędkość naddźwiękowa
     }
+
+    private float GetAirDensity(float altitude)
+    {
+        // Uproszczony model gęstości powietrza w zależności od wysokości
+        return Mathf.Max(1.225f * Mathf.Pow(1 - (altitude / 44330f), 4.256f), 0.001f);
+    }
+    private Vector3 GetWindDirection()
+    {
+        // Uproszczony model kierunku wiatru (można rozszerzyć o dynamiczne źródła)
+        return new Vector3(1, 0, 0); // Przykładowy kierunek wiatru
+    }
+    private float GetWindStrength()
+    {
+        // Uproszczony model siły wiatru (można rozszerzyć o dynamiczne źródła)
+        return 5f; // Przykładowa siła wiatru w m/s
+    }
+    private float GetTemperature(float altitude)
+    {
+        // Uproszczony model temperatury w zależności od wysokości
+        return Mathf.Max(20f - (altitude / 1000f) * 6.5f, -50f); // Przykładowa temperatura w °C
+    }
+    private float GetHumidity()
+    {
+        // Uproszczony model wilgotności (można rozszerzyć o dynamiczne źródła)
+        return 0.5f; // Przykładowa wilgotność względna (0-1)
+    }
+
+
 
 }
